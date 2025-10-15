@@ -1,0 +1,16 @@
+# .odoo_lint.yaml
+
+venv_path: ".venv"               # path to virtualenv (relative to repo root)
+python_path: ".venv/bin/python3" # python executable path inside venv
+odoo_version: "16.0"             # target Odoo version for pylint-odoo
+
+requirements:                    # packages to ensure are installed
+  - pylint
+  - pylint-odoo
+  - pyyaml
+
+
+disable: 
+  - missing-module-docstring
+enable: []
+
