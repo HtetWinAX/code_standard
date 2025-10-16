@@ -7,7 +7,7 @@ $DestHook = ".git/hooks/pre-commit"
 
 Write-Host "🚀 Installing Odoo pre-commit hook..." -ForegroundColor Cyan
 
-# --- Step 1: Check if source hook exists ---
+# Step 1: Check if source hook exists
 if (-not (Test-Path $SourceHook)) {
     Write-Host "❌ Source pre-commit hook not found: $SourceHook" -ForegroundColor Red
     Write-Host "💡 Create the git_hooks/pre-commit file first" -ForegroundColor Yellow
@@ -16,7 +16,7 @@ if (-not (Test-Path $SourceHook)) {
 
 Write-Host "✅ Source hook found: $SourceHook" -ForegroundColor Green
 
-# --- Step 2: Ensure git hooks directory exists ---
+# Step 2: Ensure git hooks directory exists
 $hooksDir = ".git/hooks"
 if (-not (Test-Path $hooksDir)) {
     Write-Host "📁 Creating hooks directory..." -ForegroundColor Yellow
@@ -24,7 +24,7 @@ if (-not (Test-Path $hooksDir)) {
     Write-Host "✅ Hooks directory created" -ForegroundColor Green
 }
 
-# --- Step 3: Convert line endings to Windows format ---
+# Step 3: Convert line endings to Windows format
 Write-Host "🔧 Converting to Windows format..." -ForegroundColor Yellow
 
 try {
@@ -33,9 +33,6 @@ try {
     
     # Convert Unix line endings (LF) to Windows (CRLF)
     $content = $content -replace "`n", "`r`n"
-    
-    # Fix common Windows compatibility issues
-    $content = $content -replace '#!/bin/bash', "#!/bin/bash`r`n"
     
     # Write the converted file
     Set-Content -Path $DestHook -Value $content -NoNewline -Encoding UTF8
@@ -47,7 +44,7 @@ catch {
     exit 1
 }
 
-# --- Step 4: Verify the installation ---
+# Step 4: Verify the installation
 if (Test-Path $DestHook) {
     $fileInfo = Get-Item $DestHook
     $lineCount = (Get-Content $DestHook).Length
@@ -64,7 +61,7 @@ else {
     exit 1
 }
 
-# --- Step 5: Test if hook is executable ---
+# Step 5: Test if hook is executable
 Write-Host "`n🔍 Testing hook execution..." -ForegroundColor Cyan
 
 try {
@@ -74,10 +71,6 @@ try {
         Write-Host "✅ Shebang detected: $firstLine" -ForegroundColor Green
     }
     
-    # Test if file is not empty
-    if ((Get-Item $DestHook).Length -gt 100) {
-        Write-Host "✅ Hook file has sufficient content" -ForegroundColor Green
-    }
     
     Write-Host "`n🎉 Pre-commit hook ready for use!" -ForegroundColor Green
     Write-Host "💡 Next: Run 'git commit' to test the hook" -ForegroundColor Yellow
@@ -86,3 +79,5 @@ catch {
     Write-Host "⚠️  Warning: Could not verify hook properly" -ForegroundColor Yellow
     Write-Host "   Error: $($_.Exception.Message)" -ForegroundColor Red
 }
+
+Write-Host "`n🎯 Installation completed!" -ForegroundColor Green
