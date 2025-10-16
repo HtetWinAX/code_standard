@@ -12,6 +12,42 @@ if [ ! -f "$CONFIG_FILE" ]; then
     exit 1
 fi
 
+
+TARGET_PYTHON="3.11.9"
+
+# Function to check python version
+check_python_version() {
+    local py=$1
+    "$py" -c "import sys; assert sys.version_info >= (3,11,9)" >/dev/null 2>&1
+}
+
+# 1️⃣ If pyenv exists
+if command -v pyenv >/dev/null 2>&1; then
+    echo "⚙️ Pyenv detected. Ensuring Python $TARGET_PYTHON is installed..."
+    
+    if ! pyenv versions --bare | grep -q "^$TARGET_PYTHON\$"; then
+        echo "📥 Installing Python $TARGET_PYTHON via pyenv..."
+        pyenv install "$TARGET_PYTHON"
+    fi
+
+    echo "🌟 Setting local pyenv Python version to $TARGET_PYTHON..."
+    pyenv local "$TARGET_PYTHON"
+    PYTHON_EXEC="$(pyenv which python)"
+else
+    # 2️⃣ pyenv not found -> try system python
+    if command -v python3 >/dev/null 2>&1 && check_python_version python3; then
+        PYTHON_EXEC="python3"
+    elif command -v python >/dev/null 2>&1 && check_python_version python; then
+        PYTHON_EXEC="python"
+    else
+        echo "❌ No compatible Python 3.11.9+ found. Please install Python 3.11.9 or later."
+        exit 1
+    fi
+fi
+
+echo "🐍 Using Python: $PYTHON_EXEC"
+
+
 # --- Step 0: Ensure virtualenv exists ---
 VENV_PATH=".venv"  # default venv, can be overridden by YAML later
 PYTHON_PATH="$VENV_PATH/bin/python"
