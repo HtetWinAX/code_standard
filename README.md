@@ -1,37 +1,45 @@
 # code_standard
 
-check .git/hooks/pre-commit file exists
-if not then run
-For window 
-- open powershell
-- Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-.\install-precommit.ps1
+Required before setup
+_____________________
 
-For linux
-
-- bash setup.sh
+Python above 3.11
+pyyaml 
+pre-commit
 
 
 
-
+Useful Commands for pre-commit
+________________________
 
 pip install pre-commit
 pre-commit install
 pre-commit run --all-files
 
 
-need pyyaml
-need precommit 
-set pyenv above 3.11
-
-
-
 pre-commit clean
 
 
 
+Steps
+____________
+
+1) set pyenv/python above 11
+2) install python packages 'pyyaml,pre-commit'
+3) pre-commit install
+4) pre-commit run --all-files
+( optional - pre-commit clean -> if you want to clean pre-commit casche)
+
+resources
+______________
 
 
+pre-commit 
 
+-website : https://pre-commit.com/
+-github : https://github.com/pre-commit/pre-commit
 
+pylint--odoo
 
+-website : https://pypi.org/project/pylint-odoo/#files
+-github : https://github.com/pylint-dev/pylint
