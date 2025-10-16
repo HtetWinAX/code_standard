@@ -15,6 +15,19 @@ For linux
 
 
 
+pip install pre-commit
+pre-commit install
+pre-commit run --all-files
+
+
+need pyyaml
+need precommit 
+set pyenv above 3.11
+
+
+
+pre-commit clean
+
 
 
 

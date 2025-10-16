@@ -1,0 +1,39 @@
+repos:
+  # Black formatter
+  - repo: https://github.com/psf/black
+    rev: 23.9.1
+    hooks:
+      - id: black
+        language_version: python
+        additional_dependencies: []
+
+  # Local hooks for Pylint and pylint-odoo
+  - repo: local
+    hooks:
+      # Setup Python packages
+      - id: odoo_lint_runner
+        name: Setup Python
+        entry: python scripts/odoo_lint_runner.py
+        language: python
+        additional_dependencies:
+          - pylint-odoo
+          - setuptools
+        always_run: true
+        stages: [pre-commit]
+
+      # Run pylint-odoo
+      - id: run-pylint-odoo
+        name: Run pylint-odoo
+        entry: python -m pylint --load-plugins=pylint_odoo
+        language: python
+        language_version: python
+        additional_dependencies:
+          - pylint-odoo
+          - setuptools
+        args:
+          - "--valid-odoo-versions=17.0"
+          #- "--enable=[]"
+          - "--disable=missing-module-docstring"
+        types: [python]
+        stages: [pre-commit]
+
