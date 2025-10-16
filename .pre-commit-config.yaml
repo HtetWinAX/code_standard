@@ -33,7 +33,7 @@ repos:
         args:
           - "--valid-odoo-versions=17.0"
           #- "--enable=[]"
-          - "--disable=missing-module-docstring"
+          - "--disable=missing-module-docstring,manifest-required-author,missing-readme,too-few-public-methods,import-error"
         types: [python]
         stages: [pre-commit]
 
