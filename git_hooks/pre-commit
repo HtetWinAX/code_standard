@@ -12,6 +12,31 @@ if [ ! -f "$CONFIG_FILE" ]; then
     exit 1
 fi
 
+# --- Step 0: Ensure virtualenv exists ---
+VENV_PATH=".venv"  # default venv, can be overridden by YAML later
+PYTHON_PATH="$VENV_PATH/bin/python"
+
+if [ ! -d "$PROJECT_ROOT/$VENV_PATH" ]; then
+    echo "⚙️ Creating virtual environment..."
+    python3 -m venv "$PROJECT_ROOT/$VENV_PATH"
+    echo "✅ Virtualenv created at $VENV_PATH"
+fi
+
+# --- Step 1: Ensure python executable exists ---
+if [ ! -x "$PROJECT_ROOT/$PYTHON_PATH" ]; then
+    echo "❌ Python path invalid: $PYTHON_PATH"
+    exit 1
+fi
+
+# --- Step 2: Upgrade pip & setuptools ---
+"$PROJECT_ROOT/$PYTHON_PATH" -m pip install --upgrade pip setuptools wheel >/dev/null 2>&1
+
+# --- Step 3: Ensure PyYAML is installed in venv ---
+if ! "$PROJECT_ROOT/$PYTHON_PATH" -c "import yaml" >/dev/null 2>&1; then
+    echo "⚙️ Installing PyYAML..."
+    "$PROJECT_ROOT/$PYTHON_PATH" -m pip install --quiet pyyaml
+fi
+
 # --- Helper: read YAML safely ---
 read_yaml() {
     python3 - "$1" <<'EOF'
