@@ -1,0 +1,231 @@
+
+#!/bin/bash
+# Robust YAML-driven Odoo pre-commit hook with auto venv & package repair
+
+set -e
+
+PROJECT_ROOT=$(git rev-parse --show-toplevel)
+CONFIG_FILE="$PROJECT_ROOT/.odoo_lint.yaml"
+
+if [ ! -f "$CONFIG_FILE" ]; then
+    echo "❌ Missing config file: $CONFIG_FILE"
+    exit 1
+fi
+
+# --- Helper: read YAML safely ---
+read_yaml() {
+    python3 - "$1" <<'EOF'
+import sys, json, subprocess
+
+try:
+    import yaml
+except ModuleNotFoundError:
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "--quiet", "pyyaml"])
+    import yaml
+
+cfg_file = sys.argv[1]
+try:
+    with open(cfg_file) as f:
+        data = yaml.safe_load(f) or {}
+    print(json.dumps(data))
+except Exception as e:
+    print(f"❌ YAML parsing error in {cfg_file}: {e}", file=sys.stderr)
+    sys.exit(1)
+EOF
+}
+
+CONFIG_JSON=$(read_yaml "$CONFIG_FILE") || exit 1
+
+
+
+# --- Extract YAML values ---
+get_config_value() {
+    echo "$CONFIG_JSON" | python3 -c "
+import json, sys
+data=json.load(sys.stdin)
+print(data.get('$1',''))
+"
+}
+
+VENV_PATH=$(get_config_value venv_path)
+PYTHON_PATH=$(get_config_value python_path)
+ODOO_VERSION=$(get_config_value odoo_version)
+
+echo "📂 Project: $PROJECT_ROOT"
+echo "📦 Virtualenv path: $VENV_PATH"
+echo "🐍 Python path: $PYTHON_PATH"
+echo "🧩 Odoo version: $ODOO_VERSION"
+
+# --- Step 1: Create venv if missing ---
+if [ ! -d "$PROJECT_ROOT/$VENV_PATH" ]; then
+    echo "⚙️ Creating virtual environment..."
+    python3 -m venv "$PROJECT_ROOT/$VENV_PATH"
+    echo "✅ Virtualenv created at $VENV_PATH"
+fi
+
+# --- Step 2: Ensure python executable exists ---
+if [ ! -x "$PROJECT_ROOT/$PYTHON_PATH" ]; then
+    echo "❌ Python path invalid: $PYTHON_PATH"
+    exit 1
+fi
+
+# --- Step 3: Upgrade pip and setuptools ---
+echo "🔄 Updating pip and setuptools..."
+"$PROJECT_ROOT/$PYTHON_PATH" -m pip install --upgrade pip setuptools wheel >/dev/null 2>&1
+
+# --- Step 4: Install required packages with better error handling ---
+REQUIREMENTS=$(echo "$CONFIG_JSON" | python3 -c "
+import json, sys
+data=json.load(sys.stdin)
+print(' '.join(data.get('requirements', [])))
+")
+
+if [ -n "$REQUIREMENTS" ]; then
+    echo "🔎 Checking and installing required packages..."
+    for pkg in $REQUIREMENTS; do
+        if ! "$PROJECT_ROOT/$PYTHON_PATH" -m pip show "$pkg" >/dev/null 2>&1; then
+            echo "📥 Installing missing package: $pkg"
+            if "$PROJECT_ROOT/$PYTHON_PATH" -m pip install --quiet "$pkg"; then
+                echo "✅ Installed $pkg"
+            else
+                echo "❌ Failed to install $pkg"
+                echo "💡 Trying with verbose output..."
+                "$PROJECT_ROOT/$PYTHON_PATH" -m pip install "$pkg"
+                exit 1
+            fi
+        else
+            echo "✅ Package $pkg already installed"
+        fi
+    done
+else
+    echo "ℹ️ No requirements specified in config"
+fi
+
+# --- Step 5: Verify critical packages are installed ---
+echo "🔍 Verifying critical packages..."
+# Map package names to their import names
+verify_package() {
+    local pkg=$1
+    local import_name=$2
+    
+    if ! "$PROJECT_ROOT/$PYTHON_PATH" -c "import $import_name" 2>/dev/null; then
+        echo "❌ Critical package $pkg not properly installed (cannot import $import_name)"
+        echo "📥 Re-installing $pkg..."
+        if "$PROJECT_ROOT/$PYTHON_PATH" -m pip install --force-reinstall "$pkg"; then
+            echo "✅ Successfully re-installed $pkg"
+            # Verify again after reinstall
+            if "$PROJECT_ROOT/$PYTHON_PATH" -c "import $import_name" 2>/dev/null; then
+                echo "✅ Package $pkg now verified"
+                return 0
+            else
+                echo "❌ Package $pkg still not working after reinstall"
+                return 1
+            fi
+        else
+            echo "❌ Failed to re-install $pkg"
+            return 1
+        fi
+    else
+        echo "✅ Package $pkg verified"
+        return 0
+    fi
+}
+
+# Verify each critical package with correct import names
+verify_package "black" "black" || exit 1
+verify_package "pylint" "pylint" || exit 1
+verify_package "pylint-odoo" "pylint_odoo" || exit 1
+
+echo "✅ All critical packages verified"
+
+# --- Step 6: Get staged Python files ---
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\.py$' || true)
+if [ -z "$STAGED_FILES" ]; then
+    echo "✅ No Python files staged."
+    exit 0
+fi
+
+FAILED=0
+
+# --- Step 7: Black formatting with auto-fix ---
+echo "🔧 Running Black..."
+for file in $STAGED_FILES; do
+    # First check if the file needs formatting
+    if "$PROJECT_ROOT/$PYTHON_PATH" -m black --check "$file" >/dev/null 2>&1; then
+        echo "✅ Black passed: $file"
+    else
+        echo "⚠️  Black formatting needed: $file"
+        echo "🔄 Auto-formatting with Black..."
+        if "$PROJECT_ROOT/$PYTHON_PATH" -m black "$file" 2>/dev/null; then
+            echo "✅ Black auto-formatted: $file"
+            # Add the formatted file to staging
+            git add "$file"
+        else
+            echo "❌ Black formatting failed: $file"
+            echo "💡 Try running manually: black $file"
+            FAILED=1
+        fi
+    fi
+done
+
+# --- Step 8: Build pylint args from YAML ---
+echo "🔧 Building pylint configuration..."
+
+enable=$(echo "$CONFIG_JSON" | python3 -c "
+import json, sys
+data=json.load(sys.stdin)
+enable_list = data.get('enable', [])
+if not isinstance(enable_list, list):
+    enable_list = [enable_list] if enable_list else []
+print(','.join(str(e) for e in enable_list))
+")
+
+disable=$(echo "$CONFIG_JSON" | python3 -c "
+import json, sys
+data=json.load(sys.stdin)
+disable_list = data.get('disable', [])
+if not isinstance(disable_list, list):
+    disable_list = [disable_list] if disable_list else []
+print(','.join(str(e) for e in disable_list))
+")
+
+
+
+# --- Step 9: Run pylint-odoo ---
+echo "🔍 Running pylint-odoo..."
+echo "Addiotional Enable Rule(s): $enable,Addiotional Disable Rule(s): $disable"
+for file in $STAGED_FILES; do
+    echo "-------------------------------"
+    echo "📝 Checking: $file"
+    echo "-------------------------------"
+    echo "🔍 Command: pylint --load-plugins=pylint_odoo --valid-odoo-versions=$ODOO_VERSION --enable=$enable --disable=$disable $file"
+    if "$PROJECT_ROOT/$PYTHON_PATH" -m pylint --load-plugins=pylint_odoo \
+        --valid-odoo-versions="$ODOO_VERSION" --enable=$enable --disable=$disable "$file" 2>/dev/null; then
+        
+        echo "✅ Pylint passed: $file"
+        
+        
+    else
+    	
+        echo "❌ Pylint failed: $file"
+        echo "📄 Command To Run: pylint --load-plugins=pylint_odoo --valid-odoo-versions=$ODOO_VERSION --enable=$enable --disable=$disable $file"
+        
+        # Show the actual pylint errors
+        #"$PROJECT_ROOT/$PYTHON_PATH" -m pylint --load-plugins=pylint_odoo \
+            #--valid-odoo-versions="$ODOO_VERSION" --enable=$enable --disable=$disable "$file" || true
+        FAILED=1
+        
+    fi
+done
+
+# --- Step 10: Abort commit if failed ---
+if [ $FAILED -ne 0 ]; then
+    echo "-------------------------------"
+    echo "🚫 Commit aborted. Fix formatting/lint issues first."
+    echo "💡 Tips:"
+    echo "   - Run 'pylint --load-plugins=pylint_odoo your_file.py' to see specific issues"
+    exit 1
+fi
+
+echo "✅ All Odoo lint checks and formatting passed successfully!"
+exit 0
