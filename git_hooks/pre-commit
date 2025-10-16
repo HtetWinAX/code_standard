@@ -13,39 +13,45 @@ if [ ! -f "$CONFIG_FILE" ]; then
 fi
 
 
-TARGET_PYTHON="3.11.9"
-
 # Function to check python version
 check_python_version() {
     local py=$1
-    "$py" -c "import sys; assert sys.version_info >= (3,11,9)" >/dev/null 2>&1
+    "$py" -c "import sys; exit(0) if sys.version_info >= (3,11,9) else exit(1)" >/dev/null 2>&1
 }
 
-# 1️⃣ If pyenv exists
-if command -v pyenv >/dev/null 2>&1; then
-    echo "⚙️ Pyenv detected. Ensuring Python $TARGET_PYTHON is installed..."
-    
-    if ! pyenv versions --bare | grep -q "^$TARGET_PYTHON\$"; then
-        echo "📥 Installing Python $TARGET_PYTHON via pyenv..."
-        pyenv install "$TARGET_PYTHON"
-    fi
+# Start with the default python (python3 or python)
+PYTHON_EXEC="python3"
+if ! command -v "$PYTHON_EXEC" >/dev/null 2>&1; then
+    PYTHON_EXEC="python"
+fi
 
-    echo "🌟 Setting local pyenv Python version to $TARGET_PYTHON..."
-    pyenv local "$TARGET_PYTHON"
-    PYTHON_EXEC="$(pyenv which python)"
+# Check if current Python is already >= 3.11.9
+if check_python_version "$PYTHON_EXEC"; then
+    echo "🐍 Current Python ($PYTHON_EXEC) is compatible (>= $TARGET_PYTHON)"
 else
-    # 2️⃣ pyenv not found -> try system python
-    if command -v python3 >/dev/null 2>&1 && check_python_version python3; then
-        PYTHON_EXEC="python3"
-    elif command -v python >/dev/null 2>&1 && check_python_version python; then
-        PYTHON_EXEC="python"
+    # Try pyenv if available
+    if command -v pyenv >/dev/null 2>&1; then
+        echo "⚙️ Pyenv detected. Ensuring Python $TARGET_PYTHON is installed..."
+        if ! pyenv versions --bare | grep -q "^$TARGET_PYTHON\$"; then
+            echo "📥 Installing Python $TARGET_PYTHON via pyenv..."
+            pyenv install "$TARGET_PYTHON"
+        fi
+        echo "🌟 Setting local pyenv Python version to $TARGET_PYTHON..."
+        pyenv local "$TARGET_PYTHON"
+        PYTHON_EXEC="$(pyenv which python)"
     else
-        echo "❌ No compatible Python 3.11.9+ found. Please install Python 3.11.9 or later."
-        exit 1
+        # Fallback: try system python3.11 if installed
+        if command -v python3.11 >/dev/null 2>&1 && check_python_version python3.11; then
+            PYTHON_EXEC="python3.11"
+        else
+            echo "❌ No compatible Python >= $TARGET_PYTHON found. Please install it."
+            exit 1
+        fi
     fi
 fi
 
 echo "🐍 Using Python: $PYTHON_EXEC"
+
 
 
 # --- Step 0: Ensure virtualenv exists ---
