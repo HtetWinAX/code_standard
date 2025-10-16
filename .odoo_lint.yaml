@@ -12,5 +12,10 @@ requirements:                    # packages to ensure are installed
 
 disable: 
   - missing-module-docstring
+  - manifest-required-author
+  - missing-readme
+  - too-few-public-methods
+  - unused-import
+  
 enable: []
 
