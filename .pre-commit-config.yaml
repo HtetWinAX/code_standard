@@ -1,5 +1,4 @@
 repos:
-  # Black formatter
   - repo: https://github.com/psf/black
     rev: 23.9.1
     hooks:
@@ -7,10 +6,8 @@ repos:
         language_version: python
         additional_dependencies: []
 
-  # Local hooks for Pylint and pylint-odoo
   - repo: local
     hooks:
-      # Setup Python packages
       - id: odoo_lint_runner
         name: Setup Python
         entry: python scripts/odoo_lint_runner.py
@@ -21,7 +18,6 @@ repos:
         always_run: true
         stages: [pre-commit]
 
-      # Run pylint-odoo
       - id: run-pylint-odoo
         name: Run pylint-odoo
         entry: python -m pylint --load-plugins=pylint_odoo
@@ -32,8 +28,14 @@ repos:
           - setuptools
         args:
           - "--valid-odoo-versions=17.0"
-          #- "--enable=[]"
           - "--disable=missing-module-docstring,manifest-required-author,missing-readme,too-few-public-methods,import-error"
-        types: [python]
+        types: [python, xml]
         stages: [pre-commit]
+
+  - repo: https://github.com/OCA/odoo-pre-commit-hooks
+    rev: v0.1.6
+    hooks:
+      - id: oca-checks-odoo-module
+      - id: oca-checks-po
+        args: ["--fix"]
 
