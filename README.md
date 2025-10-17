@@ -43,3 +43,8 @@ pylint--odoo
 
 -website : https://pypi.org/project/pylint-odoo/#files
 -github : https://github.com/pylint-dev/pylint
+
+-precommit-hook-odoo
+
+website: https://pypi.org/project/oca-odoo-pre-commit-hooks/
+github: https://github.com/OCA/odoo-pre-commit-hooks

@@ -23,6 +23,7 @@
                         <field name="old_code" placeholder="e.g. 101000" class="oe_inline"/>
                     </div>
                 </div>
+                
             </xpath>
         </field>
     </record>

@@ -29,13 +29,28 @@ repos:
         args:
           - "--valid-odoo-versions=17.0"
           - "--disable=missing-module-docstring,manifest-required-author,missing-readme,too-few-public-methods,import-error"
-        types: [python, xml]
+        types: [python]
         stages: [pre-commit]
 
   - repo: https://github.com/OCA/odoo-pre-commit-hooks
     rev: v0.1.6
     hooks:
+      # XML-specific checks
       - id: oca-checks-odoo-module
-      - id: oca-checks-po
-        args: ["--fix"]
-
+        name: OCA XML Checks
+        args: 
+          - "--enable=xml-syntax-error,xml-deprecated-data-node,xml-deprecated-openerp-node,xml-duplicate-record-id,xml-record-missing-id,xml-redundant-module-name,xml-dangerous-filter-wo-user,xml-create-user-wo-reset-password,xml-view-dangerous-replace-low-priority,xml-deprecated-tree-attribute,xml-duplicate-fields,xml-dangerous-qweb-replace-low-priority,xml-duplicate-template-id,xml-not-valid-char-link,xml-oe-structure-missing-id,xml-xpath-translatable-item"
+        files: \.xml$
+        exclude: |
+          (?x)^(
+           .*/static/.*|          # Exclude static files
+           .*/tests/.*|           # Exclude test files
+           .*/i18n/.*             # Exclude translation files
+          )
+      
+      # CSV-specific checks
+      - id: oca-checks-odoo-module
+        name: OCA CSV Checks
+        args: 
+          - "--enable=csv-syntax-error,csv-duplicate-record-id,file-not-used"
+        files: \.csv$
