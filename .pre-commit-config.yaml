@@ -43,9 +43,9 @@ repos:
         files: \.xml$
         exclude: |
           (?x)^(
-           .*/static/.*|          # Exclude static files
-           .*/tests/.*|           # Exclude test files
-           .*/i18n/.*             # Exclude translation files
+           .*/static/.*|
+           .*/tests/.*|
+           .*/i18n/.*
           )
       
       # CSV-specific checks
@@ -54,3 +54,5 @@ repos:
         args: 
           - "--enable=csv-syntax-error,csv-duplicate-record-id,file-not-used"
         files: \.csv$
+
+
